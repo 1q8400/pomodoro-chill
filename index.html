@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pomodoro Chill Space</title>
+    <!-- Tailwind CSS để làm đẹp nhanh -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome cho icon -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Font chữ Google -->
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;600;800&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            overflow: hidden; /* Tránh thanh cuộn khi ảnh nền to */
+        }
+        
+        /* Hiệu ứng kính mờ (Glassmorphism) */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #68D391;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #68D391;
+        }
+        
+        /* Animation nhẹ cho đồng hồ */
+        .timer-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse { 
+            12%, 100% { opacity: 1; }
+            50% { opacity: .8; }
+        }
+
+        /* Ẩn input file mặc định */
+        input[type="file"] {
+            display: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white h-screen w-screen flex items-center justify-center relative transition-all duration-700" id="body-bg">
+
+    <!-- Lớp phủ tối để dễ đọc chữ hơn trên ảnh nền -->
+    <div class="absolute inset-0 bg-black bg-opacity-40 z-0"></div>
+
+    <!-- Container Chính -->
+    <div class="glass-panel relative z-10 p-8 rounded-3xl w-full max-w-md mx-4 flex flex-col items-center space-y-6">
+        
+        <!-- Header & Trạng thái -->
+        <div class="text-center">
+            <h2 id="mode-text" class="text-xl uppercase tracking-widest font-light text-gray-200">Đang Tập Trung</h2>
+            <div id="status-badge" class="mt-2 inline-block px-3 py-1 text-xs rounded-full bg-green-500 bg-opacity-20 text-green-300 border border-green-500 border-opacity-30 hidden">
+                Đang chặn MXH
+            </div>
+        </div>
+
+        <!-- Đồng hồ đếm ngược -->
+        <div class="text-center">
+            <div id="timer-display" class="text-7xl md:text-8xl font-bold tracking-tighter drop-shadow-lg">
+                25:00
+            </div>
+        </div>
+
+        <!-- Các nút điều khiển chính -->
+        <div class="flex space-x-6">
+            <button id="btn-start" onclick="toggleTimer()" class="bg-white text-gray-900 w-16 h-16 rounded-full flex items-center justify-center text-2xl hover:bg-gray-200 transition shadow-lg transform hover:scale-105">
+                <i class="fas fa-play ml-1"></i>
+            </button>
+            <button onclick="resetTimer()" class="bg-gray-700 bg-opacity-50 text-white w-16 h-16 rounded-full flex items-center justify-center text-xl hover:bg-opacity-70 transition border border-gray-600">
+                <i class="fas fa-redo"></i>
+            </button>
+        </div>
+
+        <!-- Khu vực Cài đặt & Âm thanh -->
+        <div class="w-full bg-black bg-opacity-20 rounded-xl p-4 space-y-4 mt-4">
+            
+            <!-- Cài đặt thời gian -->
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="text-xs text-gray-400 block mb-1">Thời gian làm (phút)</label>
+                    <input type="number" id="work-time" value="25" class="w-full bg-transparent border-b border-gray-500 text-center focus:outline-none focus:border-white transition" onchange="updateSettings()">
+                </div>
+                <div>
+                    <label class="text-xs text-gray-400 block mb-1">Thời gian nghỉ (phút)</label>
+                    <input type="number" id="break-time" value="5" class="w-full bg-transparent border-b border-gray-500 text-center focus:outline-none focus:border-white transition" onchange="updateSettings()">
+                </div>
+            </div>
+
+            <!-- Công tắc chặn Facebook/IG -->
+            <div class="flex items-center justify-between border-t border-gray-700 pt-3">
+                <div class="text-sm">
+                    <i class="fas fa-shield-alt mr-2 text-pink-500"></i>Chế độ tập trung
+                </div>
+                <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                    <input type="checkbox" name="toggle" id="focus-toggle" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer"/>
+                    <label for="focus-toggle" class="toggle-label block overflow-hidden h-5 rounded-full bg-gray-600 cursor-pointer"></label>
+                </div>
+            </div>
+            <p class="text-[10px] text-gray-400 italic text-center">Bật cái này sẽ cảnh báo nếu bạn rời tab.</p>
+
+            <!-- Âm thanh nền -->
+            <div class="flex justify-around pt-2">
+                <button onclick="toggleNoise('rain')" id="btn-rain" class="flex flex-col items-center text-gray-400 hover:text-blue-300 transition">
+                    <i class="fas fa-cloud-rain text-xl mb-1"></i>
+                    <span class="text-xs">Mưa</span>
+                </button>
+                <button onclick="toggleNoise('white')" id="btn-white" class="flex flex-col items-center text-gray-400 hover:text-yellow-200 transition">
+                    <i class="fas fa-wind text-xl mb-1"></i>
+                    <span class="text-xs">Tiếng ồn</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Tải ảnh nền -->
+        <label class="cursor-pointer text-xs text-gray-400 hover:text-white transition flex items-center">
+            <i class="fas fa-image mr-2"></i> Thay đổi ảnh nền
+            <input type="file" id="bg-upload" accept="image/*" onchange="changeBackground(this)">
+        </label>
+
+    </div>
+
+    <!-- Âm thanh thông báo (Hidden audio) -->
+    <!-- Dùng tiếng "Ting" nhẹ nhàng khi hết giờ -->
+    <audio id="alarm-sound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"></audio>
+
+    <script>
+        // --- BIẾN TOÀN CỤC ---
+        let timerInterval;
+        let timeLeft = 25 * 60;
+        let isRunning = false;
+        let isWorkMode = true;
+        let audioContext;
+        let noiseSource = null;
+        let gainNode = null;
+        let originalTitle = document.title;
+        let focusModeActive = false;
+
+        // --- HỆ THỐNG ĐỒNG HỒ (TIMER) ---
+        const timerDisplay = document.getElementById('timer-display');
+        const modeText = document.getElementById('mode-text');
+        const btnStart = document.getElementById('btn-start');
+        const alarmSound = document.getElementById('alarm-sound');
+
+        function updateDisplay() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            document.title = `${minutes}:${seconds} - ${isWorkMode ? 'Làm việc' : 'Nghỉ ngơi'}`;
+        }
+
+        function toggleTimer() {
+            if (isRunning) {
+                pauseTimer();
+            } else {
+                startTimer();
+            }
+        }
+
+        function startTimer() {
+            isRunning = true;
+            btnStart.innerHTML = '<i class="fas fa-pause ml-0"></i>'; // Đổi icon thành Pause
+            timerDisplay.classList.add('timer-pulse');
+            
+            timerInterval = setInterval(() => {
+                if (timeLeft > 0) {
+                    timeLeft--;
+                    updateDisplay();
+                } else {
+                    completeTimer();
+                }
+            }, 1000);
+        }
+
+        function pauseTimer() {
+            isRunning = false;
+            btnStart.innerHTML = '<i class="fas fa-play ml-1"></i>';
+            timerDisplay.classList.remove('timer-pulse');
+            clearInterval(timerInterval);
+        }
+
+        function resetTimer() {
+            pauseTimer();
+            updateSettings(); // Lấy lại giá trị gốc từ input
+        }
+
+        function completeTimer() {
+            pauseTimer();
+            alarmSound.play();
+            
+            // Tự động chuyển chế độ
+            isWorkMode = !isWorkMode;
+            if (isWorkMode) {
+                modeText.textContent = "Đang Tập Trung";
+                modeText.classList.remove("text-green-300");
+                alert("Hết giờ nghỉ! Quay lại làm việc nào.");
+            } else {
+                modeText.textContent = "Giờ Giải Lao";
+                modeText.classList.add("text-green-300");
+                alert("Hoàn thành! Hãy nghỉ ngơi chút nhé.");
+            }
+            updateSettings();
+        }
+
+        function updateSettings() {
+            const workMin = document.getElementById('work-time').value;
+            const breakMin = document.getElementById('break-time').value;
+            
+            if (isWorkMode) {
+                timeLeft = workMin * 60;
+            } else {
+                timeLeft = breakMin * 60;
+            }
+            updateDisplay();
+        }
+
+        // --- XỬ LÝ ẢNH NỀN ---
+        function changeBackground(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('body-bg').style.backgroundImage = `url(${e.target.result})`;
+                    document.getElementById('body-bg').style.backgroundSize = 'cover';
+                    document.getElementById('body-bg').style.backgroundPosition = 'center';
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+        
+        // Thiết lập ảnh nền mặc định (Một ảnh Chill Lofi)
+        document.getElementById('body-bg').style.backgroundImage = "url('https://images.unsplash.com/photo-1518176258769-f227c798150e?q=80&w=2670&auto=format&fit=crop')";
+        document.getElementById('body-bg').style.backgroundSize = 'cover';
+        document.getElementById('body-bg').style.backgroundPosition = 'center';
+
+        // --- CHẶN FACEBOOK/IG (FOCUS MODE LOGIC) ---
+        const focusToggle = document.getElementById('focus-toggle');
+        const statusBadge = document.getElementById('status-badge');
+
+        focusToggle.addEventListener('change', (e) => {
+            focusModeActive = e.target.checked;
+            if (focusModeActive) {
+                statusBadge.classList.remove('hidden');
+                // Xin quyền thông báo nếu cần (optional)
+            } else {
+                statusBadge.classList.add('hidden');
+                document.title = originalTitle;
+            }
+        });
+
+        // Phát hiện rời tab
+        document.addEventListener("visibilitychange", () => {
+            if (focusModeActive && document.hidden && isRunning) {
+                document.title = "⚠️ QUAY LẠI LÀM VIỆC NGAY!";
+                // Cảnh báo âm thanh nhẹ
+                const beep = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'); 
+                beep.volume = 0.5;
+                beep.play().catch(e => console.log("Cần tương tác người dùng"));
+            } else if (!document.hidden) {
+                updateDisplay(); // Reset lại title bình thường
+            }
+        });
+
+        // --- HỆ THỐNG ÂM THANH (WEB AUDIO API - NOISE GENERATOR) ---
+        // Cách này giúp tạo tiếng ồn mà không cần tải file mp3 nặng
+        function initAudio() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        
+        function createNoiseBuffer(type) {
+            const bufferSize = audioContext.sampleRate * 2; // 2 seconds buffer
+            const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+            const data = buffer.getChannelData(0);
+
+            for (let i = 0; i < bufferSize; i++) {
+                if (type === 'white') {
+                    // White noise
+                    data[i] = Math.random() * 2 - 1;
+                } else if (type === 'pink') {
+                    // Giả lập tiếng mưa (Pink/Brown approximation)
+                    const white = Math.random() * 2 - 1;
+                    data[i] = (lastOut + (0.02 * white)) / 1.02;
+                    lastOut = data[i];
+                    data[i] *= 3.5; // Compensate for gain
+                }
+            }
+            return buffer;
+        }
+        let lastOut = 0;
+
+        function toggleNoise(type) {
+            initAudio();
+            
+            // Nếu đang chạy thì tắt
+            if (noiseSource) {
+                noiseSource.stop();
+                noiseSource = null;
+                // Reset màu icon
+                document.getElementById('btn-rain').classList.remove('text-blue-400');
+                document.getElementById('btn-white').classList.remove('text-yellow-400');
+                
+                // Nếu bấm nút khác loại âm thanh đang chạy, bật cái mới
+                if (currentType !== type) {
+                   playNoise(type);
+                } else {
+                    currentType = null;
+                }
+            } else {
+                playNoise(type);
+            }
+        }
+
+        let currentType = null;
+        function playNoise(type) {
+            currentType = type;
+            const buffer = createNoiseBuffer(type === 'rain' ? 'pink' : 'white');
+            
+            noiseSource = audioContext.createBufferSource();
+            noiseSource.buffer = buffer;
+            noiseSource.loop = true;
+            
+            gainNode = audioContext.createGain();
+            gainNode.gain.value = 0.05; // Âm lượng nhỏ thôi
+            
+            noiseSource.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            noiseSource.start();
+
+            // Đổi màu icon
+            if(type === 'rain') document.getElementById('btn-rain').classList.add('text-blue-400');
+            if(type === 'white') document.getElementById('btn-white').classList.add('text-yellow-400');
+        }
+
+        // Khởi chạy lần đầu
+        updateDisplay();
+    </script>
+</body>
+</html>
